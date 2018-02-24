@@ -21,11 +21,23 @@ using namespace std;
 
 struct TreeNode {
 	int val;
+	/*  height & factor for AVL tree */
+	int height;
+	int factor;
 	TreeNode* left;
 	TreeNode* right;
-	// TreeNode* parent;
-	TreeNode(int v) : val(v), left(NULL), right(NULL) {}
+	TreeNode* parent;
+	TreeNode(int x) : val(x), height(1), factor(0), left(NULL), right(NULL), parent(NULL) {}
 };
+
+void pre_order(TreeNode* root) {
+	if (NULL == root)
+		return;
+	
+	printf(" %d ", root->val);
+	pre_order(root->left);
+	pre_order(root->right);
+}
 
 void in_order(TreeNode* root) {
 	if (NULL == root)
@@ -45,7 +57,6 @@ TreeNode* BST_search(TreeNode* root, int val) {
 		return root;
 	TreeNode* l = BST_search(root->left, val);
 	TreeNode* r = BST_search(root->right, val);
-	
 	return (NULL != l) ? l : r;
 }
 
@@ -53,48 +64,33 @@ TreeNode* BST_insert(TreeNode* root, int val) {
 	if (NULL == root)
 		return new TreeNode(val);
 	
-	if (val < root->val)
-		root->left = BST_insert(root->left, val);
-	else
-		root->right = BST_insert(root->right, val);
+	TreeNode* x = root;
+	while (true) {
+		if (val < x->val) {
+			if (NULL == x->left) {
+				x->left = new TreeNode(val);
+				x->left->parent = x;
+				break;
+			}
+			x = x->left;
+		} else {
+			if (NULL == x->right) {
+				x->right = new TreeNode(val);
+				x->right->parent = x;
+				break;
+			}
+			x = x->right;
+		}
+	}
 	
 	return root;
 }
 
 TreeNode* BST_construct(int* a, int n) {
-	/*
-	 a : array
-	 n : length of array
-	 */
 	TreeNode* root = NULL;
 	for (int i=0; i<n; i++)
 		root = BST_insert(root, a[i]);
 	return root;
-}
-
-TreeNode* BST_find_parent(TreeNode* root, TreeNode* t, int* lr) {
-	if (NULL == root || t == root)
-		return NULL;
-	
-	queue<TreeNode*> q;
-	q.push(root);
-	while (!q.empty()) {
-		TreeNode* p = q.front();
-		q.pop();
-		if (p->left == t || p->right == t) {
-			// 0 indicate left, 1 right
-			if (NULL != lr)
-				*lr = (p->left == t) ? 0 : 1;
-			return p;
-		}
-			
-		if (NULL != p->left)
-			q.push(p->left);
-		if (NULL != p->right)
-			q.push(p->right);
-	}
-	
-	return NULL;
 }
 
 TreeNode* BST_delete(TreeNode* root, int val) {
@@ -102,40 +98,49 @@ TreeNode* BST_delete(TreeNode* root, int val) {
 	if (NULL == del)
 		return root;
 	
-	TreeNode* t = NULL;
+	TreeNode* leftmost = NULL;
 	TreeNode* p = NULL;
 	if (NULL != del->left && NULL != del->right) {
-		// case 1: has two child node
-		t = del->right;
-		while (NULL != t->left)
-			t = t->left;
-		del->val = t->val;
+		/*  case 1: The del node has two child nodes */
+		leftmost = del->right;
+		while (NULL != leftmost->left)
+			leftmost = leftmost->left;
+		del->val = leftmost->val;
 		
-		p = BST_find_parent(del->right, t, NULL);
-		if (NULL == p) {
-			// del->right = t
-			del->right = t->right;
+		if (del->right == leftmost) {
+			del->right = leftmost->right;
+			if (leftmost->right != NULL)
+				leftmost->right->parent = del;
 		} else {
-			// del->right retain
-			// t->right NULL or not
-			p->left = t->right;
+			p = leftmost->parent;
+			p->left = leftmost->right;
+			if (leftmost->right != NULL)
+				leftmost->right->parent = p;
 		}
+		delete leftmost;
 	} else {
 		int lr;
-		p = BST_find_parent(root, del, &lr);
+		p = del->parent;
 		if (NULL == p) {
-			/*  del is root  */
+			/*  del node is root */
 			root = (del->left != NULL) ? del->left : del->right;
+			root->parent = NULL;
+			delete del;
 			return root;
 		}
-		// case 2: has one child node
-		if (NULL != del->left)
+		lr = (p->left == del) ? 0 : 1;
+		/*  case 2: has one child node */
+		if (NULL != del->left) {
 			(!lr) ? (p->left = del->left) : (p->right = del->left);
-		else if (NULL != del->right)
+			del->left->parent = p;
+		} else if (NULL != del->right) {
 			(!lr) ? (p->left = del->right) : (p->right = del->right);
-		// case 3: has no child node
-		else
+			del->right->parent = p;
+		} else {
+			/*  case 3: has no child node */
 			(!lr) ? (p->left = NULL) : (p->right = NULL);
+		}
+		delete del;
 	}
 	
 	return root;
@@ -168,37 +173,58 @@ bool BST_verify(TreeNode* root) {
 	return BST_check(root);
 }
 
+void check(TreeNode* root);
+
 int main() {
 	
-	// int a[] = {12, 324, 42, 42, 5, 74, 534, 543, 9};
-	// int n = sizeof(a) / sizeof(a[0]);
-	
-	// TreeNode* root = BST_construct(a, n);
-	
-	TreeNode* root = new TreeNode(0);
-	// root->left = new TreeNode(-2);
-	// root->right = new TreeNode(2);
-	// root->left->left = new TreeNode(-6);
-	// root->left->right = new TreeNode(0);
-	// root->right->left = new TreeNode(0);
-	// root->right->right = new TreeNode(6);
+	int n = 1000;
+	int* a = (int*)malloc(sizeof(int)*n);
+	srand(111);
+	for (int i=0; i<n; i++)
+		a[i] = rand();
+	TreeNode* root = BST_construct(a, n);
 	
 	string info;
-	info = BST_verify(root) ? "BST" : "NOT BST";
+	info = BST_verify(root)?"BST":"NOT BST";
 	printf("%s\n", &info[0]);
-	in_order(root);
+	// in_order(root);
 	
 	root = BST_insert(root, 1);
 	root = BST_insert(root, -1);
 	
-	info = BST_verify(root) ? "BST" : "NOT BST";
+	info = BST_verify(root)?"BST":"NOT BST";
 	printf("\n%s\n", &info[0]);
-	in_order(root);
+	// in_order(root);
 	
-	root = BST_delete(root, 0);
-	info = BST_verify(root) ? "BST" : "NOT BST";
+	root = BST_delete(root, root->val);
+	info = BST_verify(root)?"BST":"NOT BST";
 	printf("\n%s\n", &info[0]);
-	in_order(root);
+	// in_order(root);
+	
+	check(root);
 	
 	return 0;
+}
+
+void check(TreeNode* root) {
+	/*  print the number of node whose parent is NULL
+		i.e. check whether there is only one root */
+	if (NULL == root) {
+		printf("(1)\n");
+		return;
+	}
+	
+	int c = 0;
+	queue<TreeNode*> q;
+	q.push(root);
+	while (!q.empty()) {
+		TreeNode* h = q.front();
+		q.pop();
+		if (NULL == h->parent)
+			c++;
+		if (h->left != NULL) q.push(h->left);
+		if (h->right != NULL) q.push(h->right);
+	}
+	
+	printf("(%d)\n", c);
 }
