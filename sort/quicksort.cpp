@@ -13,7 +13,7 @@ int get_pivot(int* a, int begin, int end) {
 	int pivot;
 	int x, y, z;
 	x = a[begin];
-	// to avoid integer overflow
+	/*  to avoid integer overflow */
 	y = a[begin+(end-begin)/2];
 	z = a[end];
 	pivot = median(x, y, z);
@@ -21,12 +21,13 @@ int get_pivot(int* a, int begin, int end) {
 }
 
 int naive_partition(int* a, int begin, int end) {
-	/* Lomuto’s version
-	   degrade to O(n^2) when:
-	   1. the input array is already sorted
-	   2. all elements are identity
+	/*  Lomuto’s version
+		degrade to O(n^2) when:
+		1. the input array is already sorted
+		2. all elements are identity
 	 */
-	// the index "end" is included, i.e. [begin, end]
+	 
+	/*  the index "end" is included, i.e. [begin, end] */
 	int pivot = a[end];
 	int i, j;
 	i = begin - 1;
@@ -36,7 +37,7 @@ int naive_partition(int* a, int begin, int end) {
 			swap(a[i], a[j]);
 		}
 	}
-	// put the selected pivot into the right position
+	/*  put the selected pivot into the right position */
 	swap(a[i+1], a[end]);
 	return (i+1);
 }
@@ -50,13 +51,14 @@ void naive_quicksort(int* a, int begin, int end) {
 }
 
 int partition(int* a, int begin, int end) {
-	/* Hoare’s version
-	   compared to Lomuto’s version,
-	   this one creates efficient partitions even when all values are equal
+	/*  Hoare’s version
+		compared to Lomuto’s version,
+		this one creates efficient partitions even when all values are equal
+		but still degrade to O(n^2) when input is sorted array
 	 */
 	
-	int pivot = a[begin];// original version
-	// int pivot = get_pivot(a, begin, end);// opt in pivot selection
+	int pivot = a[begin];/*  original version */
+	// int pivot = get_pivot(a, begin, end);/*  trick for pivot selection */
 	int i, j;
 	i = begin - 1;
 	j = end + 1;
@@ -68,12 +70,13 @@ int partition(int* a, int begin, int end) {
 		do {
 			j--;
 		} while (a[j] > pivot);
-		// wiki is right, p185 in Introduce to Algorithm(3rd) is wrong
+		/*  there must be no '=', wiki is right, 
+			p185 in Introduce to Algorithm(3rd) is wrong */
 		
 		if (i >= j)
 			return j;
-		// why return j, not i
-		// only "return j" work correctly, confused about it
+		/*  why return j, not i
+			only "return j" work correctly, confused about it */
 		
 		swap(a[i], a[j]);
 	}
@@ -87,27 +90,45 @@ void quicksort(int* a, int begin, int end) {
 	}
 }
 
-int opt_partition(int* a, int begin, int end) {
-	return partition(a, begin, end);
+void tail_quicksort(int* a, int begin, int end) {
+	/*  
+		using tail recursion to opt the space efficient
+		take care that, despite this opt, 
+		quicksort is still not in-place(i.e. O(1) auxiliary space) but O(logn) sort algorithm
+		
+		reference : https://www.geeksforgeeks.org/quicksort-tail-call-optimization-reducing-worst-case-space-log-n/
+	 */
+	while (begin < end) {
+		
+		int p = partition(a, begin ,end);
+		if (p - begin + 1 < end - (p+1) + 1) {
+			tail_quicksort(a, begin, p);
+			begin = p + 1;
+		} else {
+			tail_quicksort(a, p+1, end);
+			end = p;
+		}
+	}
 }
 
-void opt_insertion_sort(int* a, int begin, int end);
+void insertion_sort(int* a, int begin, int end);
 
-void opt_quicksort(int* a, int begin, int end) {
-	// when end - begin < K, use insert sort
+void insertion_quicksort(int* a, int begin, int end) {
+	/*  Opt the normal quicksort, 
+		when end - begin < K(empirically, 7 - 15), use insert sort instead */
 	if (begin < end) {
 		if (end - begin < 10) {
-			opt_insertion_sort(a, begin, end);
+			insertion_sort(a, begin, end);
 		} else {
-			int p = opt_partition(a, begin, end);
-			opt_quicksort(a, begin, p);
-			opt_quicksort(a, p+1, end);
+			int p = partition(a, begin, end);
+			insertion_quicksort(a, begin, p);
+			insertion_quicksort(a, p+1, end);
 		}
 	}
 }
 
 int repeat_partition(int* a, int begin, int end, int pivot, int* left, int* right) {
-	/* it does not seem to be a good implementation
+	/*  it does not seem to be a good implementation
 	 */
 	int i, j;
 	int c = 0;
@@ -163,24 +184,25 @@ int main() {
 	
 	// naive_quicksort(a, 0, n-1);
 	// quicksort(a, 0, n-1);
-	opt_quicksort(a, 0, n-1);
+	tail_quicksort(a, 0, n-1);
+	// insertion_quicksort(a, 0, n-1);
 	// repeat_qsort(a, 0, n-1);
 	
 	t = clock() - t;
 	
 	printf("(%d)\n", check(a, n));
-	printf("%f seconds\n", ((float)t)/CLOCKS_PER_SEC);
+	printf("%f s\n", ((float)t)/CLOCKS_PER_SEC);
 	
 	return 0;
 }
 
-void opt_insertion_sort(int* a, int begin, int end) {
-	/*  From insertionsort.cpp */
+void insertion_sort(int* a, int begin, int end) {
+	/*  copy from insertionsort.cpp */
 	if (NULL == a || begin >= end)
 		return;
 	
-	int i = begin + 1, j, cache;
-	while (i <= end) {
+	int i, j, cache;
+	for (i=begin+1; i<=end; i++) {
 		cache = a[i];
 		j = i - 1;
 		/*  in this way, repeat element would not move */
@@ -189,6 +211,5 @@ void opt_insertion_sort(int* a, int begin, int end) {
 			j--;
 		}
 		a[j+1] = cache;
-		i++;
 	}
 }
